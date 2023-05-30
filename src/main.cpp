@@ -1,6 +1,10 @@
 #include <WiFi.h>
 #include <esp_now.h>
+//
+int control_single();
+void move(int, int, int);
 
+//
 // Structure example to receive data
 // Must match the sender structure
 typedef struct struct_message
@@ -138,39 +142,90 @@ void setup()
   ledcSetup(2, 50, resolution); // 50Hz,信道2
   ledcAttachPin(output25, 2);
 }
-
-void loop()
+// 绝对值
+int abs(int num)
 {
-  // Serial.print(WiFi.macAddress());
-  if (myData.xz > 2100) // 大于就是摇杆往前推了
-  {
-    l_front(myData.xz);
-    r_front(myData.xz);
+  if (num > 0)
+    return num;
+  return -num;
+}
 
-    // Serial.println("front"); 
-  }
-  if (myData.xz < 1700)
-  {
-    l_back(myData.xz);
-    r_back(myData.xz);
-    // Serial.println("back");
-  }
-  if (myData.yz > 2100)
-  {
-    l_front(myData.yz);
-    r_back(myData.yz);
-    // Serial.println("left");
-  }
-  if (myData.yz < 1700) // 小于就是摇杆转了，要往左走
-  {
-    r_front(myData.yz);
-    l_back(myData.yz);
-    // Serial.println("right");
-  }
+/*
+-1 代表停止
+0 代表速度由y轴控制
+1 代表速度由x轴控制
+*/
+int control_single()
+{
   if (myData.xz <= 2100 && myData.xz >= 1700 && myData.yz <= 2100 &&
       myData.yz >= 1700)
+    return -1;
+  if (abs(myData.xz - 1800) > abs(myData.yz - 1800))
+    return 1;
+  return 0;
+}
+void control(int cont, int x, int y, void *(func_pwm)(int, int, int))
+{
+  // 停止信号
+  if (!cont)
   {
-    stop_lr();
-    // Serial.println("stop");
+    func_pwm(0, 0, cont);
+    return;
   }
+  if (cont == 1)
+  {
+    // x轴控制默认前进
+    func_pwm(x, y, cont);
+    return;
+  }
+  func_pwm(y, x, cont);
+  return;
+}
+void move(int pwm, int dev, int single)
+{
+  if (single)
+  {
+    // x轴控制
+    if (pwm > 1800)
+    {
+      ledcWrite(0, 100 + (int)((pwm - 2100) / 1996 * 155));
+    }
+    return;
+  }
+}
+void loop()
+{
+
+  // Serial.print(WiFi.macAddress());
+  // if (myData.xz > 2100) // 大于就是摇杆往前推了
+  // {
+  //   l_front(myData.xz);
+  //   r_front(myData.xz);
+
+  //   // Serial.println("front");
+  // }
+  // if (myData.xz < 1700)
+  // {
+  //   l_back(myData.xz);
+  //   r_back(myData.xz);
+  //   // Serial.println("back");
+  // }
+  // if (myData.yz > 2100)
+  // {
+  //   l_front(myData.yz);
+  //   r_back(myData.yz);
+  //   // Serial.println("left");
+  // }
+  // if (myData.yz < 1700) // 小于就是摇杆转了，要往左走
+  // {
+  //   r_front(myData.yz);
+  //   l_back(myData.yz);
+  //   // Serial.println("right");
+  // }
+  // if (myData.xz <= 2100 && myData.xz >= 1700 && myData.yz <= 2100 &&
+  //     myData.yz >= 1700)
+  // {
+  //   stop_lr();
+  //   // Serial.println("stop");
+  // }
 }
