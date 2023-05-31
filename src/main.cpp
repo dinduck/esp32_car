@@ -157,44 +157,130 @@ int abs(int num)
 */
 int control_single()
 {
-  if (myData.xz <= 2100 && myData.xz >= 1700 && myData.yz <= 2100 &&
-      myData.yz >= 1700)
+  if (myData.xz <= 2100 && myData.xz >= 1600 && myData.yz <= 2100 &&
+      myData.yz >= 1600)
     return -1;
   if (abs(myData.xz - 1800) > abs(myData.yz - 1800))
     return 1;
   return 0;
 }
-void control(int cont, int x, int y, void *(func_pwm)(int, int, int))
+void control(int cont, int x, int y)
 {
   // 停止信号
-  if (!cont)
+  if (cont == -1)
   {
-    func_pwm(0, 0, cont);
+    Serial.println("stop");
+    move(1800, 1800, cont);
     return;
   }
   if (cont == 1)
   {
     // x轴控制默认前进
-    func_pwm(x, y, cont);
+    Serial.println("x move");
+    move(x, y, cont);
     return;
   }
-  func_pwm(y, x, cont);
+  Serial.println("y move");
+  move(y, x, cont);
   return;
 }
 void move(int pwm, int dev, int single)
 {
-  if (single)
+  if (single == -1)
+  {
+    ledcWrite(0, 100);
+    ledcWrite(1, 100);
+  }
+  if (single == 1)
   {
     // x轴控制
-    if (pwm > 1800)
+    if (pwm > 2100)
     {
-      ledcWrite(0, 100 + (int)((pwm - 2100) / 1996 * 155));
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in4, LOW);
+      digitalWrite(in3, HIGH);
+      ledcWrite(0, 100 + (int)((pwm - 2100) / 1996.0 * 155));
+      ledcWrite(1, 100);
+      // y轴正
+      if (dev > 2100)
+      {
+        ledcWrite(1, (int)(100 + (dev - 2100) / 1996.0 * 155));
+      }
+      else if (dev < 1600)
+      {
+        ledcWrite(1, (int)(100 - (1700 - dev) / 1996.0 * 155));
+      }
+      // ledcWrite(1, (int)(100 + (dev - 2100) / 1996 * 155));
+    }
+    else if (pwm < 1600)
+    {
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in4, LOW);
+      digitalWrite(in3, HIGH);
+      ledcWrite(1, 100 + (int)((1600 - pwm) / 1996.0 * 155));
+      ledcWrite(0, 100);
+      // y 正
+      if (dev > 2100)
+      {
+        ledcWrite(0, (int)(100 + (dev - 2100) / 1996.0 * 155));
+      }
+      else if (dev < 1600)
+      {
+        ledcWrite(0, (int)(100 - (1600 - dev) / 1996.0 * 155));
+      }
     }
     return;
   }
+  // y 轴控制
+
+  if (pwm > 2100)
+  {
+    //
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+    digitalWrite(in4, LOW);
+    digitalWrite(in3, HIGH);
+    ledcWrite(0, 100 + (int)((pwm - 2100) / 1996.0 * 155));
+    ledcWrite(1, 100 + (int)((pwm - 2100) / 1996.0 * 155));
+    // x轴正
+    if (dev > 2100)
+    {
+      // 右轮减速，小车右偏
+      ledcWrite(1, (int)(100 + (pwm - 2100 + dev - 2100) / 1996.0 * 155));
+    }
+    else if (dev < 1600)
+    {
+      // 左轮减速
+      ledcWrite(0, (int)(100 + (pwm - 2100 + 1600 - dev) / 1996.0 * 155));
+    }
+    // ledcWrite(1, (int)(100 + (dev - 2100) / 1996 * 155));
+  }
+  else if (pwm < 1700)
+  {
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in4, HIGH);
+    digitalWrite(in3, LOW);
+    ledcWrite(1, 100 + (int)((1700 - pwm) / 1996.0 * 155));
+    ledcWrite(0, 100 + (int)((1700 - pwm) / 1996.0 * 155));
+    // x 正
+    if (dev > 2100)
+    {
+      // 邮轮减速
+      ledcWrite(1, (int)(100 + (1700 - pwm + dev - 2100) / 1996.0 * 155));
+    }
+    else if (dev < 1700)
+    {
+      ledcWrite(0, (int)(100 + (1700 - pwm + 1700 - dev) / 1996.0 * 155));
+    }
+  }
+  return;
 }
 void loop()
 {
+  control(control_single(), myData.xz, myData.yz);
 
   // Serial.print(WiFi.macAddress());
   // if (myData.xz > 2100) // 大于就是摇杆往前推了
